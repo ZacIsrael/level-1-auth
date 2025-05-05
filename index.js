@@ -4,6 +4,12 @@ import bodyParser from "body-parser";
 // postgreSQL module
 import pg from "pg";
 
+// used to securely hash passwords; automatically generates a random salt and hashes the password.
+import bcrypt from "bcrypt";
+
+// used for salting passwords
+const saltRounds = 10;
+
 // allows us to access our passwords and other sensitive variables from the .env file
 import dotenv from "dotenv";
 dotenv.config();
@@ -65,15 +71,23 @@ app.post("/register", async (req, res) => {
     } else {
       try {
         // INSERT credentials into the necessary table (users) in the database (HASH password first)
-        const result = await db.query(
-          `INSERT INTO ${usersTable} (email, password) VALUES ($1, $2)`,
-          [email, pw]
-        );
+        // hash password
+        bcrypt.hash(pw, saltRounds, async (err, hash) => {
+          if (err) {
+            // error occured when trying to hash the password
+            console.error(`(/register) error hashing password: `, err.stack);
+          } else {
+            const result = await db.query(
+              `INSERT INTO ${usersTable} (email, password) VALUES ($1, $2)`,
+              [email, hash]
+            );
 
-        // redirect the user to the secrets EJS file/page
-        res.render("secrets");
+            // redirect the user to the secrets EJS file/page
+            res.render("secrets");
+          }
+        });
       } catch (err) {
-        // In a real application, this error would get sent to the front end and the front end developer(s) 
+        // In a real application, this error would get sent to the front end and the front end developer(s)
         // would properly display the correct error message to the end user
         console.error(
           `Error registering user with email = ${email}: `,
