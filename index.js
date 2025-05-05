@@ -4,6 +4,12 @@ import bodyParser from "body-parser";
 // postgreSQL module
 import pg from "pg";
 
+// allows us to setup a new session to save a new user login session
+import session from "express-session";
+// allows login/authentication features (like email/password login, Google login, GitHub login, etc.) 
+// to be added to the application.
+import passport from "passport";
+
 // used to securely hash passwords; automatically generates a random salt and hashes the password.
 import bcrypt from "bcrypt";
 
@@ -25,6 +31,26 @@ app.set("view engine", "ejs");
 app.use(bodyParser.urlencoded({ extended: true }));
 app.use(express.static("public"));
 
+app.use(
+  session({
+    // Master key the sever uses to make sure the session cookie is authentic and hasn't been altered
+    // by a hacker or someone else. If the cookie does not match this secret, the server will reject the session.
+    secret: process.env.SESSION_SECRET,
+    // Forces the session to be saved back to the session store, even if it wasn’t modified during the request.
+    // (Setting it to false means don't resave unless the session data was actually modified — good for performance.)
+    resave: false,
+    // Saves new sessions that are uninitialized (i.e., new but not modified) to the session store
+    saveUninitialized: true,
+  })
+);
+
+// intializes passport into the app; sets up passport to process incoming requests (the application will 
+// now look for any authentication-related information in those requests (like login attempts)).
+// in simpler terms, intialize() makes Passport ready to intercept and handle login, signup, and authentication logic.
+app.use(passport.initialize());
+// tells passport to use session based authentication
+app.use(passport.session());
+
 // accessing the postgreSQL server
 const db = new pg.Client({
   user: process.env.PG_USERNAME,
@@ -42,6 +68,16 @@ const usersTable = "users";
 
 app.get("/", (req, res) => {
   res.render("home.ejs");
+});
+
+app.get("/secrets", async (req, res) => {
+
+  // check to see if a session exists 
+
+  // if the session is valid, render the secrets page/ejs file
+
+  // otherwise, throw an error saying that the user is not authorized to access this page
+  
 });
 
 app.get("/login", (req, res) => {
@@ -159,7 +195,7 @@ app.post("/login", async (req, res) => {
           } else {
             // check to see if their password is correct
             // result is a boolean that indicates if the user input and the stored password are the same
-            console.log('result = ', result);
+            console.log("result = ", result);
             if (result) {
               // user put the correct password, give them access to the site
               res.render("secrets");
