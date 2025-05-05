@@ -96,10 +96,12 @@ app.post("/login", async (req, res) => {
     req.body.hasOwnProperty("password")
   ) {
     // user submits credentials in body of request
-    let email = req.body.username;
+
+    // email is NOT case sensitive
+    let email = req.body.username.toLowerCase();
     let pw = req.body.password;
 
-    if (email.trim().length === 0 || pw.trim().length() === 0) {
+    if (email.trim().length === 0 || pw.trim().length === 0) {
       // Error:  email or password is an empty string
       console.error(
         `Error (/login): email and/or username is an empty string.`
