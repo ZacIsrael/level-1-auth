@@ -19,26 +19,64 @@ app.get("/register", (req, res) => {
   res.render("register.ejs");
 });
 
-
 app.post("/register", async (req, res) => {
+  // debugging
+  console.log("'/register' route: req.body = ", req.body);
+  if (
+    req.body.hasOwnProperty("username") &&
+    req.body.hasOwnProperty("password")
+  ) {
+    let email = req.body.username;
+    let pw = req.body.password;
 
-  // user submits credentials to create an account in body of the request
+    if(email.trim().length === 0 || pw.trim().length() === 0){
+      // Error:  email or password is an empty string
+      console.error(`Error (/register): email and/or username is an empty string.`);
+    } else {
 
-  // INSERT credentials into the necessary table (users) in the database 
+    // user submits credentials to create an account in body of the request
 
+    // INSERT credentials into the necessary table (users) in the database
+  
+  }
+  
+  } else {
+    // Error: for some reason, the username & password were not send in the request
+    console.error(`Error (/register): email and/or username not sent in the body of the request.`);
+  }
 });
 
 // user submits credential
 app.post("/login", async (req, res) => {
+  // debugging
+  console.log("'/login' route: req.body = ", req.body);
+  if (
+    req.body.hasOwnProperty("username") &&
+    req.body.hasOwnProperty("password")
+  ) {
 
-  // user submits credentials in body of request
+    let email = req.body.username;
+    let pw = req.body.password;
 
-  // check database to see if the user exists or if their password is correct
+    if(email.trim().length === 0 || pw.trim().length() === 0){
+      // Error:  email or password is an empty string
+      console.error(`Error (/login): email and/or username is an empty string.`);
+    } else {
 
-  // if so, allows the user access to the site
+    // user submits credentials in body of request
 
-  // if not, deny them access to the site and display necessary error message
+    // check database to see if the user exists or if their password is correct
 
+    // if so, allows the user access to the site
+
+    // if not, deny them access to the site and display necessary error message
+
+
+  }
+  } else {
+    // Error: for some reason, the username & password were not send in the request
+    console.error(`Error (/login): email and/or username not sent in the body of the request.`);
+  }
 });
 
 app.listen(port, () => {
