@@ -12,6 +12,7 @@ const saltRounds = 10;
 
 // allows us to access our passwords and other sensitive variables from the .env file
 import dotenv from "dotenv";
+import e from "express";
 dotenv.config();
 
 const app = express();
@@ -125,28 +126,63 @@ app.post("/login", async (req, res) => {
         `Error (/login): email and/or username is an empty string.`
       );
     } else {
-      // check database to see if the user exists or if their password is correct
+      // check database to see if the user exists
+
+      // variable that determines whether or not a user with the email provided exists
+      let exists = -1;
+
+      // variable that stores the result of the query
+      let result;
       try {
-        const result = await db.query(
-          `SELECT * FROM ${usersTable} WHERE LOWER(email) = ($1) AND password = ($2);`,
-          [email, pw]
+        result = await db.query(
+          `SELECT * FROM ${usersTable} WHERE LOWER(email) = ($1)`,
+          [email]
         );
-        console.log("(/login): result.rows = ", result.rows);
-        if (result.rows.length !== 1) {
-          // Only one row should be returned
-          console.error(
-            `Error (/login): There is more than one user with the email ${email}`
-          );
-        } else {
-          // if so, allows the user access to the site
-          // redirect the user to the secrets EJS file/page
-          res.render("secrets");
+        if (result.rows.length === 1) {
+          exists = 1;
+        } else if (result.rows.length > 1) {
+          exists = 2;
         }
       } catch (err) {
-        // if not, deny them access to the site and display necessary error message
+        console.error(`There is no user with email = ${email}: `, err.stack);
+      }
+
+      // a user with the email provided does exist in the users table
+      if (exists === 1) {
+        // user found in the database
+        const userWithEmail = result.rows[0];
+        let storedPassword = userWithEmail.password;
+        // take user input and compare against the hashed password stored in the database
+        bcrypt.compare(pw, storedPassword, async (err, result) => {
+          if (err) {
+            console.error(`(/login) error comparing password: `, err.stack);
+          } else {
+            // check to see if their password is correct
+            // result is a boolean that indicates if the user input and the stored password are the same
+            console.log('result = ', result);
+            if (result) {
+              // user put the correct password, give them access to the site
+              res.render("secrets");
+            } else {
+              // if not, deny them access to the site and display necessary error message
+              console.error(
+                `Incorrect password for user with email = ${email}.`
+              );
+              // Redirect user back to the login; In a real application, the frontend developers
+              // would properly display the error message and prompt the user to try loggin in again.
+              res.redirect("/login");
+            }
+          }
+        });
+      } else if (exists === 2) {
+        // More than 1 user with that email
+        // Only 1row should be returned
         console.error(
-          `Error loggin in user with email = ${email}: `,
-          err.stack
+          `Error (/login): There is more than one user with the email ${email}`
+        );
+      } else {
+        console.error(
+          `Error (/login): User with email = ${email} does not exist.`
         );
       }
     }
