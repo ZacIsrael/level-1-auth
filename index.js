@@ -57,7 +57,7 @@ app.post("/register", async (req, res) => {
     let email = req.body.username;
     let pw = req.body.password;
 
-    if (email.trim().length === 0 || pw.trim().length() === 0) {
+    if (email.trim().length === 0 || pw.trim().length === 0) {
       // Error:  email or password is an empty string
       console.error(
         `Error (/register): email and/or username is an empty string.`
@@ -66,11 +66,12 @@ app.post("/register", async (req, res) => {
       try {
         // INSERT credentials into the necessary table (users) in the database (HASH password first)
         const result = await db.query(
-          `INSERT INTO ${usersTable} (username, password) VALUES ($1, $2)`,
+          `INSERT INTO ${usersTable} (email, password) VALUES ($1, $2)`,
           [email, pw]
         );
 
-        // redirect the user to necessary page after they have registered
+        // redirect the user to the secrets EJS file/page
+        res.render("secrets");
       } catch (err) {
         console.error(
           `Error registering user with email = ${email}: `,
@@ -118,6 +119,8 @@ app.post("/login", async (req, res) => {
           );
         } else {
           // if so, allows the user access to the site
+          // redirect the user to the secrets EJS file/page
+          res.render("secrets");
         }
       } catch (err) {
         // if not, deny them access to the site and display necessary error message
