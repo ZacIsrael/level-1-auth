@@ -73,10 +73,14 @@ app.post("/register", async (req, res) => {
         // redirect the user to the secrets EJS file/page
         res.render("secrets");
       } catch (err) {
+        // In a real application, this error would get sent to the front end and the front end developer(s) 
+        // would properly display the correct error message to the end user
         console.error(
           `Error registering user with email = ${email}: `,
           err.stack
         );
+        // redirect the user back to the register route
+        res.redirect("/register");
       }
     }
   } else {
