@@ -1,11 +1,37 @@
 import express from "express";
 import bodyParser from "body-parser";
 
+// postgreSQL module
+import pg from "pg";
+
+// allows us to access our passwords and other sensitive variables from the .env file
+import dotenv from "dotenv";
+dotenv.config();
+
 const app = express();
 const port = 3000;
 
+// allows the application to use EJS
+app.set("view engine", "ejs");
+
+// allows the Express server to correctly read form data via the body of the request (req.body)
 app.use(bodyParser.urlencoded({ extended: true }));
 app.use(express.static("public"));
+
+// accessing the postgreSQL server
+const db = new pg.Client({
+  user: process.env.PG_USERNAME,
+  host: "localhost",
+  // access the "authentication-practice" database from the postgreSQL server
+  database: "authentication-practice",
+  password: process.env.PG_PASSWORD,
+  port: 5432
+});
+// connect to the postgreSQL server
+db.connect();
+
+// constants for the tables in the authentication-practice database in the postgreSQL server
+const usersTable = "users";
 
 app.get("/", (req, res) => {
   res.render("home.ejs");
@@ -36,7 +62,7 @@ app.post("/register", async (req, res) => {
 
     // user submits credentials to create an account in body of the request
 
-    // INSERT credentials into the necessary table (users) in the database
+    // INSERT credentials into the necessary table (users) in the database (HASH password first)
   
   }
   
@@ -55,6 +81,7 @@ app.post("/login", async (req, res) => {
     req.body.hasOwnProperty("password")
   ) {
 
+    // user submits credentials in body of request
     let email = req.body.username;
     let pw = req.body.password;
 
@@ -63,13 +90,21 @@ app.post("/login", async (req, res) => {
       console.error(`Error (/login): email and/or username is an empty string.`);
     } else {
 
-    // user submits credentials in body of request
-
     // check database to see if the user exists or if their password is correct
+    try {
+      const result = await db.query(`SELECT * FROM ${usersTable} WHERE LOWER(email) = '($1)' AND password = '($2)';`, [email, pw]);
+      console.log('(/login): result.rows = ', result.rows)
+      if (result.rows.length !== 1){
+        // Only one row should be returned
+        console.error(`Error (/login): There is more than one user with the email ${email}`)
+      } else {
+        // if so, allows the user access to the site
 
-    // if so, allows the user access to the site
-
-    // if not, deny them access to the site and display necessary error message
+      }
+    } catch (err){
+       // if not, deny them access to the site and display necessary error message
+       console.error(`Error loggin in user with email = ${email}: `, err.stack);
+    }
 
 
   }
