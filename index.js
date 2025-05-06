@@ -124,14 +124,13 @@ app.get(
 // logs the user out, triggered when the user click the "log out" button (see secrets.ejs)
 app.get("/logout", async (req, res) => {
   req.logout((err) => {
-    if(err){
-    console.log(`Error occured when logging out: `, err);
-  }
+    if (err) {
+      console.log(`Error occured when logging out: `, err);
+    }
 
-  // redirect the user to the home page once they have logged out
-  res.redirect("/");
-
-  })
+    // redirect the user to the home page once they have logged out
+    res.redirect("/");
+  });
 });
 
 app.post("/register", async (req, res) => {
@@ -333,7 +332,9 @@ passport.use(
         );
         // if so, prompt the user to log in
         if (result.rowCount > 0) {
-          console.log(`User with email ${email} already exists. Logging them in.`);
+          console.log(
+            `User with email ${email} already exists. Logging them in.`
+          );
           cb(null, result.rows[0]);
         } else {
           // Otherwise, store this new user in the users table
