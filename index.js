@@ -65,7 +65,7 @@ const db = new pg.Client({
   // access the "authentication-practice" database from the postgreSQL server
   database: "authentication-practice",
   password: process.env.PG_PASSWORD,
-  port: 5432,
+  port: process.env.PG_PORT
 });
 // connect to the postgreSQL server
 db.connect();
