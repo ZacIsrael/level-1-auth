@@ -6,9 +6,11 @@ import pg from "pg";
 
 // allows us to setup a new session to save a new user login session
 import session from "express-session";
-// allows login/authentication features (like email/password login, Google login, GitHub login, etc.) 
+// allows login/authentication features (like email/password login, Google login, GitHub login, etc.)
 // to be added to the application.
 import passport from "passport";
+// Strategy class for local username/password authentication
+import { Strategy } from "passport-local";
 
 // used to securely hash passwords; automatically generates a random salt and hashes the password.
 import bcrypt from "bcrypt";
@@ -18,7 +20,7 @@ const saltRounds = 10;
 
 // allows us to access our passwords and other sensitive variables from the .env file
 import dotenv from "dotenv";
-import e from "express";
+
 dotenv.config();
 
 const app = express();
@@ -44,7 +46,7 @@ app.use(
   })
 );
 
-// intializes passport into the app; sets up passport to process incoming requests (the application will 
+// intializes passport into the app; sets up passport to process incoming requests (the application will
 // now look for any authentication-related information in those requests (like login attempts)).
 // in simpler terms, intialize() makes Passport ready to intercept and handle login, signup, and authentication logic.
 app.use(passport.initialize());
@@ -71,13 +73,16 @@ app.get("/", (req, res) => {
 });
 
 app.get("/secrets", async (req, res) => {
-
-  // check to see if a session exists 
-
-  // if the session is valid, render the secrets page/ejs file
-
-  // otherwise, throw an error saying that the user is not authorized to access this page
-  
+  // req.user is passed in from the callback function (cb) in the Strategy object
+  console.log("req.user", req.user);
+  // check to see if a session exists
+  if (req.isAuthenticated()) {
+    // if the user is authenticated (session is valid), render the secrets page/ejs file
+    res.render("secrets");
+  } else {
+    // otherwise, redirect the user to the /login route so they can authenticate themselves
+    res.redirect("/login");
+  }
 });
 
 app.get("/login", (req, res) => {
@@ -143,7 +148,19 @@ app.post("/register", async (req, res) => {
 });
 
 // user submits credential
+// authenticate() triggers the local Strategy that is defined below
+app.post("/login", passport.authenticate("local", {
+
+  // where the user gets redirected to if their authentication was successful
+  successRedirect: "/secrets",
+  // redirects the user back to the /login route if their authentication was unsuccessful
+  failureRedirect: "/login"
+}));
+
+/*
+// user submits credential
 app.post("/login", async (req, res) => {
+  
   // debugging
   console.log("'/login' route: req.body = ", req.body);
   if (
@@ -228,6 +245,116 @@ app.post("/login", async (req, res) => {
       `Error (/login): email and/or username not sent in the body of the request.`
     );
   }
+
+  
+});
+*/
+
+passport.use(
+  new Strategy(async function verify(username, password, cb) {
+    // debugging, this function retrieves the username & password from the front end file
+    console.log("username = ", username, "password = ", password);
+    if (username.trim().length === 0 || password.trim().length === 0) {
+      // Error:  email or password is an empty string
+      // console.error(
+      //   `Error (/login): email and/or username is an empty string.`
+      // );
+
+      // return call back function with the error
+      return cb(`Error (/login): email and/or username is an empty string.`);
+    } else {
+      // check database to see if the user exists
+
+      // email is NOT case sensitive
+      username = username.toLocaleLowerCase();
+
+      // variable that determines whether or not a user with the email provided exists
+      let exists = -1;
+
+      // variable that stores the result of the query
+      let result;
+      try {
+        result = await db.query(
+          `SELECT * FROM ${usersTable} WHERE LOWER(email) = ($1)`,
+          [username]
+        );
+        if (result.rows.length === 1) {
+          exists = 1;
+        } else if (result.rows.length > 1) {
+          exists = 2;
+        }
+
+        console.log('result = ', result);
+      } catch (err) {
+        console.error(`There is no user with email = ${username}: `, err.stack);
+      }
+
+      // a user with the email provided does exist in the users table
+      if (exists === 1) {
+        // user found in the database
+        const user = result.rows[0];
+        console.log('user = ', user);
+        let storedPassword = user.password;
+        // take user input and compare against the hashed password stored in the database
+        bcrypt.compare(password, storedPassword, async (err, result) => {
+          if (err) {
+            // console.error(`(/login) error comparing password: `, err.stack);
+            // send the error as a parameter in the callback function
+            return cb(err);
+          } else {
+            // check to see if their password is correct
+            // result is a boolean that indicates if the user input and the stored password are the same
+            console.log("result = ", result);
+            if (result) {
+              // user put the correct password, give them access to the site
+              // cb: callback fucntion (errors, details of the user); this allows for the isAuthenticated() function in the /secrets route to work
+              return cb(null, user);
+            } else {
+              // if not, deny them access to the site and display necessary error message
+              // console.error(`Incorrect password for user with email = ${username}.`);
+              // Redirect user back to the login; In a real application, the frontend developers
+              // would properly display the error message and prompt the user to try loggin in again.
+              // res.redirect("/login");
+
+              // the false value for the 2nd parameter lets the application know that the user has not been authenticated
+              return cb(null, false);
+            }
+          }
+        });
+      } else if (exists === 2) {
+        // More than 1 user with that email
+        // Only 1row should be returned
+        // console.error(
+        //   `Error (/login): There is more than one user with the email ${username}`
+        // );
+
+        return cb(
+          `Error (/login): There is more than one user with the email ${username}`
+        );
+      } else {
+        // user not found
+        // console.error(
+        //   `Error (/login): User with email = ${username} does not exist.`
+        // );
+
+        return cb(
+          `Error (/login): User with email = ${username} does not exist.`
+        );
+      }
+    }
+  })
+);
+
+// serializeUser() allows the application to save the data of the user that is logged in to local storage
+passport.serializeUser((user, cb) => {
+  // no error, user's data
+  cb(null, user);
+});
+
+// deserializeUser() allows the application to transform (deserialize) the user's data back into a manner in which we (the developer(s)) can access it
+passport.deserializeUser((user, cb) => {
+  // no error, user's data
+  cb(null, user);
 });
 
 app.listen(port, () => {
