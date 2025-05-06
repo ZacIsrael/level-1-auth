@@ -43,6 +43,11 @@ app.use(
     resave: false,
     // Saves new sessions that are uninitialized (i.e., new but not modified) to the session store
     saveUninitialized: true,
+    //
+    cookie: {
+      // how long the session will last before it expires (milliseconds)
+      maxAge: 1000 * 60 * 60
+    }
   })
 );
 
@@ -284,7 +289,7 @@ passport.use(
           exists = 2;
         }
 
-        console.log('result = ', result);
+        console.log('result.rows = ', result.rows);
       } catch (err) {
         console.error(`There is no user with email = ${username}: `, err.stack);
       }
