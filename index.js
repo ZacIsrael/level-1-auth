@@ -46,8 +46,8 @@ app.use(
     //
     cookie: {
       // how long the session will last before it expires (milliseconds)
-      maxAge: 1000 * 60 * 60
-    }
+      maxAge: 1000 * 60 * 60,
+    },
   })
 );
 
@@ -124,13 +124,26 @@ app.post("/register", async (req, res) => {
             // error occured when trying to hash the password
             console.error(`(/register) error hashing password: `, err.stack);
           } else {
+
+
             const result = await db.query(
-              `INSERT INTO ${usersTable} (email, password) VALUES ($1, $2)`,
+              `INSERT INTO ${usersTable} (email, password) VALUES ($1, $2) RETURNING *`,
               [email, hash]
             );
-
+            // the "RETURNING *' keyword in the query returns all the columns from the user that was just inserted into the table
+            const user = result.rows[0];
             // redirect the user to the secrets EJS file/page
-            res.render("secrets");
+            // res.render("secrets");
+
+            // logs in the user & saves them to the session once they register
+            req.login(user, (err) => {
+              // error occured
+              console.log(err);
+              // redirect the user to the secrets EJS file/page
+              res.redirect("/secrets");
+            });
+
+
           }
         });
       } catch (err) {
@@ -154,13 +167,15 @@ app.post("/register", async (req, res) => {
 
 // user submits credential
 // authenticate() triggers the local Strategy that is defined below
-app.post("/login", passport.authenticate("local", {
-
-  // where the user gets redirected to if their authentication was successful
-  successRedirect: "/secrets",
-  // redirects the user back to the /login route if their authentication was unsuccessful
-  failureRedirect: "/login"
-}));
+app.post(
+  "/login",
+  passport.authenticate("local", {
+    // where the user gets redirected to if their authentication was successful
+    successRedirect: "/secrets",
+    // redirects the user back to the /login route if their authentication was unsuccessful
+    failureRedirect: "/login",
+  })
+);
 
 /*
 // user submits credential
@@ -289,7 +304,7 @@ passport.use(
           exists = 2;
         }
 
-        console.log('result.rows = ', result.rows);
+        console.log("result.rows = ", result.rows);
       } catch (err) {
         console.error(`There is no user with email = ${username}: `, err.stack);
       }
@@ -298,7 +313,7 @@ passport.use(
       if (exists === 1) {
         // user found in the database
         const user = result.rows[0];
-        console.log('user = ', user);
+        console.log("user = ", user);
         let storedPassword = user.password;
         // take user input and compare against the hashed password stored in the database
         bcrypt.compare(password, storedPassword, async (err, result) => {
