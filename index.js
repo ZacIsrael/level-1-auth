@@ -11,6 +11,8 @@ import session from "express-session";
 import passport from "passport";
 // Strategy class for local username/password authentication
 import { Strategy } from "passport-local";
+// Strategy class for Google OAuth authentication
+import GoogleStrategy from "passport-google-oauth2";
 
 // used to securely hash passwords; automatically generates a random salt and hashes the password.
 import bcrypt from "bcrypt";
@@ -65,7 +67,7 @@ const db = new pg.Client({
   // access the "authentication-practice" database from the postgreSQL server
   database: "authentication-practice",
   password: process.env.PG_PASSWORD,
-  port: process.env.PG_PORT
+  port: process.env.PG_PORT,
 });
 // connect to the postgreSQL server
 db.connect();
@@ -98,6 +100,27 @@ app.get("/register", (req, res) => {
   res.render("register.ejs");
 });
 
+// gets triggered when the user clicks "login with google" (see login.ejs)
+app.get(
+  "/auth/google",
+  passport.authenticate("google", {
+    // this object tells google what we (the application) need from them (google)
+    // application grabs the profile and the email of the user once they log in.
+    scope: ["profile", "email"],
+  })
+);
+
+// gets triggered once a user authenticates with google
+app.get(
+  "/auth/google/secrets",
+  passport.authenticate("google", {
+    // where the user gets redirected to if their Google OAuth authentication was successful
+    successRedirect: "/secrets",
+    // where the user gets redirected to if their Google OAuth authentication was NOT successful
+    failureRedirect: "/login",
+  })
+);
+
 app.post("/register", async (req, res) => {
   // debugging
   console.log("'/register' route: req.body = ", req.body);
@@ -124,8 +147,6 @@ app.post("/register", async (req, res) => {
             // error occured when trying to hash the password
             console.error(`(/register) error hashing password: `, err.stack);
           } else {
-
-
             const result = await db.query(
               `INSERT INTO ${usersTable} (email, password) VALUES ($1, $2) RETURNING *`,
               [email, hash]
@@ -142,8 +163,6 @@ app.post("/register", async (req, res) => {
               // redirect the user to the secrets EJS file/page
               res.redirect("/secrets");
             });
-
-
           }
         });
       } catch (err) {
@@ -177,100 +196,8 @@ app.post(
   })
 );
 
-/*
-// user submits credential
-app.post("/login", async (req, res) => {
-  
-  // debugging
-  console.log("'/login' route: req.body = ", req.body);
-  if (
-    req.body.hasOwnProperty("username") &&
-    req.body.hasOwnProperty("password")
-  ) {
-    // user submits credentials in body of request
-
-    // email is NOT case sensitive
-    let email = req.body.username.toLowerCase();
-    let pw = req.body.password;
-
-    if (email.trim().length === 0 || pw.trim().length === 0) {
-      // Error:  email or password is an empty string
-      console.error(
-        `Error (/login): email and/or username is an empty string.`
-      );
-    } else {
-      // check database to see if the user exists
-
-      // variable that determines whether or not a user with the email provided exists
-      let exists = -1;
-
-      // variable that stores the result of the query
-      let result;
-      try {
-        result = await db.query(
-          `SELECT * FROM ${usersTable} WHERE LOWER(email) = ($1)`,
-          [email]
-        );
-        if (result.rows.length === 1) {
-          exists = 1;
-        } else if (result.rows.length > 1) {
-          exists = 2;
-        }
-      } catch (err) {
-        console.error(`There is no user with email = ${email}: `, err.stack);
-      }
-
-      // a user with the email provided does exist in the users table
-      if (exists === 1) {
-        // user found in the database
-        const userWithEmail = result.rows[0];
-        let storedPassword = userWithEmail.password;
-        // take user input and compare against the hashed password stored in the database
-        bcrypt.compare(pw, storedPassword, async (err, result) => {
-          if (err) {
-            console.error(`(/login) error comparing password: `, err.stack);
-          } else {
-            // check to see if their password is correct
-            // result is a boolean that indicates if the user input and the stored password are the same
-            console.log("result = ", result);
-            if (result) {
-              // user put the correct password, give them access to the site
-              res.render("secrets");
-            } else {
-              // if not, deny them access to the site and display necessary error message
-              console.error(
-                `Incorrect password for user with email = ${email}.`
-              );
-              // Redirect user back to the login; In a real application, the frontend developers
-              // would properly display the error message and prompt the user to try loggin in again.
-              res.redirect("/login");
-            }
-          }
-        });
-      } else if (exists === 2) {
-        // More than 1 user with that email
-        // Only 1row should be returned
-        console.error(
-          `Error (/login): There is more than one user with the email ${email}`
-        );
-      } else {
-        console.error(
-          `Error (/login): User with email = ${email} does not exist.`
-        );
-      }
-    }
-  } else {
-    // Error: for some reason, the username & password were not send in the request
-    console.error(
-      `Error (/login): email and/or username not sent in the body of the request.`
-    );
-  }
-
-  
-});
-*/
-
 passport.use(
+  "local",
   new Strategy(async function verify(username, password, cb) {
     // debugging, this function retrieves the username & password from the front end file
     console.log("username = ", username, "password = ", password);
@@ -365,6 +292,63 @@ passport.use(
   })
 );
 
+// Google based Strategy
+passport.use(
+  "google",
+  new GoogleStrategy(
+    {
+      // client and secret are generated from the app in Google cloud
+      clientID: process.env.GOOGLE_CLIENT_ID,
+      clientSecret: process.env.GOOGLE_CLIENT_SECRET,
+      callbackURL: "http://localhost:3000/auth/google/secrets",
+      // gives access to the user's profile's information
+      userProfileURL: "https://www.googleapis.com/oauth2/v3/userinfo",
+    },
+    // the function below gets triggered once the user successfully authenticates with their google account
+    async (accessToken, refreshToken, profile, cb) => {
+      console.log("user's google profile = ", profile);
+
+      // Save the data from the user's profile into the users table in the postgreSQL database
+      // profile.json has the following fields: email, name, email_verified (boolean), given_name, family_name, sub, & picture
+      // profile also has an email field
+      let email = profile.email;
+      try {
+        // check to see if a user with the profile.json.email already exists
+        const result = await db.query(
+          `SELECT * FROM ${usersTable} WHERE email = ($1)`,
+          [email]
+        );
+        // if so, prompt the user to log in
+        if (result.rowCount > 0) {
+          console.log(`User with email ${email} already exists. Logging them in.`);
+          cb(null, result.rows[0]);
+        } else {
+          // Otherwise, store this new user in the users table
+          try {
+            let newUser = await db.query(
+              `INSERT INTO ${usersTable} (email, password) VALUES ($1, $2)`,
+              [email, "google"]
+            );
+            // cb: callback fucntion (errors, details of the user); this allows for the isAuthenticated() function in the /secrets route to work
+            cb(null, newUser);
+          } catch (err) {
+            console.error(
+              `Error inserting user that signed in with Google OAuth into the database.`
+            );
+            cb(err);
+          }
+        }
+      } catch (err) {
+        // error
+        console.error(
+          `Error excuting query that searches for a user with email = ${email}.`
+        );
+        cb(err);
+      }
+    }
+  )
+);
+
 // serializeUser() allows the application to save the data of the user that is logged in to local storage
 passport.serializeUser((user, cb) => {
   // no error, user's data
@@ -380,3 +364,96 @@ passport.deserializeUser((user, cb) => {
 app.listen(port, () => {
   console.log(`Server running on port ${port}`);
 });
+
+/*
+// user submits credential
+app.post("/login", async (req, res) => {
+  
+  // debugging
+  console.log("'/login' route: req.body = ", req.body);
+  if (
+    req.body.hasOwnProperty("username") &&
+    req.body.hasOwnProperty("password")
+  ) {
+    // user submits credentials in body of request
+
+    // email is NOT case sensitive
+    let email = req.body.username.toLowerCase();
+    let pw = req.body.password;
+
+    if (email.trim().length === 0 || pw.trim().length === 0) {
+      // Error:  email or password is an empty string
+      console.error(
+        `Error (/login): email and/or username is an empty string.`
+      );
+    } else {
+      // check database to see if the user exists
+
+      // variable that determines whether or not a user with the email provided exists
+      let exists = -1;
+
+      // variable that stores the result of the query
+      let result;
+      try {
+        result = await db.query(
+          `SELECT * FROM ${usersTable} WHERE LOWER(email) = ($1)`,
+          [email]
+        );
+        if (result.rows.length === 1) {
+          exists = 1;
+        } else if (result.rows.length > 1) {
+          exists = 2;
+        }
+      } catch (err) {
+        console.error(`There is no user with email = ${email}: `, err.stack);
+      }
+
+      // a user with the email provided does exist in the users table
+      if (exists === 1) {
+        // user found in the database
+        const userWithEmail = result.rows[0];
+        let storedPassword = userWithEmail.password;
+        // take user input and compare against the hashed password stored in the database
+        bcrypt.compare(pw, storedPassword, async (err, result) => {
+          if (err) {
+            console.error(`(/login) error comparing password: `, err.stack);
+          } else {
+            // check to see if their password is correct
+            // result is a boolean that indicates if the user input and the stored password are the same
+            console.log("result = ", result);
+            if (result) {
+              // user put the correct password, give them access to the site
+              res.render("secrets");
+            } else {
+              // if not, deny them access to the site and display necessary error message
+              console.error(
+                `Incorrect password for user with email = ${email}.`
+              );
+              // Redirect user back to the login; In a real application, the frontend developers
+              // would properly display the error message and prompt the user to try loggin in again.
+              res.redirect("/login");
+            }
+          }
+        });
+      } else if (exists === 2) {
+        // More than 1 user with that email
+        // Only 1row should be returned
+        console.error(
+          `Error (/login): There is more than one user with the email ${email}`
+        );
+      } else {
+        console.error(
+          `Error (/login): User with email = ${email} does not exist.`
+        );
+      }
+    }
+  } else {
+    // Error: for some reason, the username & password were not send in the request
+    console.error(
+      `Error (/login): email and/or username not sent in the body of the request.`
+    );
+  }
+
+  
+});
+*/
