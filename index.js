@@ -121,6 +121,19 @@ app.get(
   })
 );
 
+// logs the user out, triggered when the user click the "log out" button (see secrets.ejs)
+app.get("/logout", async (req, res) => {
+  req.logout((err) => {
+    if(err){
+    console.log(`Error occured when logging out: `, err);
+  }
+
+  // redirect the user to the home page once they have logged out
+  res.redirect("/");
+
+  })
+});
+
 app.post("/register", async (req, res) => {
   // debugging
   console.log("'/register' route: req.body = ", req.body);
