@@ -1,0 +1,183 @@
+﻿Section 35: Authentication & Security - Handling Credentials & Designing a Secure Login
+Introduction to Authentication:
+* Authentication is the process of verifying the identity of a user, device, or system before granting access to a resource (such as a website, application, or database); In simple terms: Authentication answers the question, "Are you really who you say you are?"
+* Why is Authentication necessary?
+   * Security:
+      * Without authentication, anyone could access sensitive information or control systems without restrictions.
+      * It protects data (e.g., user profiles, financial records, medical information) from being stolen, changed, or deleted by unauthorized users.
+   * Access Control:
+      * Systems often have different levels of access (e.g., regular users vs. admins).
+      * Authentication ensures that only the right people get the appropriate access to the right resources.
+   * Accountability:
+      * When users are authenticated, their actions can be logged and traced back to them.
+      * This is important for auditing, detecting malicious activity, and ensuring users follow rules (compliance).
+   * User Personalization:
+      * Once authenticated, a system can load a user’s personalized settings, preferences, and saved information (like saved shopping carts, dashboard layouts, etc.).
+      * This improves the user experience and makes the system more efficient.
+   * Preventing Fraud & Abuse:
+      * Especially in applications involving money (like online shopping, banking, and subscriptions), authentication protects against impersonation and unauthorized transactions.
+   * Legal & Regulatory Compliance:
+      * Many industries (such as healthcare, finance, and government) are legally required to protect sensitive data.
+      * Authentication is a core part of meeting regulations like GDPR, HIPAA, and PCI-DSS.
+* Common Authentication Methods:
+   * Passwords: User enters a secret password to prove identity.
+   * Multi-Factor Authentication (MFA): Requires two or more pieces of evidence (e.g., password + a code sent to phone).
+   * Biometrics: Fingerprint scans, facial recognition, etc.
+   * OAuth and Tokens: Used for web apps and APIs to allow "login with Google/Facebook" without giving your password to the third-party app.
+   * Certificates and Keys: Used mainly for devices and servers (SSL/TLS certificates for secure websites).
+Encryption & Hashing:
+* What is Encryption?
+   * Encryption is the process of transforming readable data ("plaintext") into an unreadable format ("ciphertext") so that only authorized parties can access it by decrypting it back into its original form.
+   * Encryption is reversible with the correct key
+   * Purpose of Encryption:
+      * Protect sensitive data (e.g., passwords, credit card numbers, personal information) during storage or transmission.
+      * Ensure confidentiality — even if someone steals the encrypted data, they cannot read it without the decryption key.
+      * Used in:
+         * Securing websites (HTTPS uses encryption)
+         * Sending private emails
+         * Protecting files and databases
+      * Examples:
+         * User sends a message: "Hello World” → After encryption, it looks like: 5Gv2@9n$7Bq! (nonsense to outsiders) → Only someone with the decryption key can turn it back into "Hello World".
+         * Websites use SSL/TLS encryption so a user’s credit card details stay private when they shop online (look for the 🔒 icon).
+* What is Hashing?
+   * Hashing is the process of transforming data into a fixed-size string of characters, which cannot be reversed back to the original data.
+   * Unlike encryption, hashing cannot be reversed
+   * Purpose of Hashing: 
+      * Verify data integrity — to check if something has changed.
+      * Store passwords securely — rather than saving actual passwords, systems save hashes.
+      * Helps with quick comparisons (e.g., verifying a password without knowing the actual password).
+   * Examples:
+      * When a user creates an account, their password is hashed before it is saved in the database — even the website owner can't see their real password.
+      * Original password: MySecret123 → After hashing, it becomes something like: 5f4dcc3b5aa765d61d8327deb882cf99
+      * You cannot take the hash and reverse it back to MySecret123.
+      * Instead, when a user logs in, the system hashes what they typed and compares the two hashes.
+How to Hack Passwords:
+* What is a Hashtable?
+   *  a data structure that stores key-value pairs. It uses a hash function to quickly convert a key into an index (location) in an array where the value is stored.
+   * Fast lookup, fast retrieval
+   * How Hash Tables work:
+      * You take a key (like a username or word) → You run it through a hash function (mathematical formula). → The hash function gives you an index (a number). → You store the value at that index.
+*  How do hackers use hash tables to hack passwords?
+   * Precomputed Hash Tables (“Rainbow Tables”):
+      * Hackers pre-compute huge tables of common passwords and their hashes.
+      * When they steal a database of hashed passwords, they just look up the hash in their rainbow table.
+      * If the hash matches something in their table, they instantly know the original password
+   * Brute Force Attacks:
+      * If they don’t have a match, hackers can just try every possible password, hash it, and check if it matches your stored hash.
+      * This is slow without specialized tools, but modern GPUs can test millions of guesses per second.
+* How developers can defend against hackers attempting to steal passwords from their database/application:
+   * Salting passwords:
+      * A "salt" is random extra data added to the password before hashing.
+      * This makes rainbow tables useless because the hashes will be different even if two people have the same password.
+   * Using strong hashing algorithms:
+      * Algorithms like bcrypt, Argon2, scrypt are made to slow down hashing on purpose.
+      * Slowing down hashing means brute force attacks become way too slow to be practical.
+   * Require strong passwords:
+      * Longer, random passwords make brute forcing much harder.
+* Hackers don’t "reverse" hashes — they guess passwords, hash them, and see if the hashes match. It’s about guessing smart and fast, not "unlocking" the hash directly.
+Salting Passwords (in depth):
+* Salting is the process of adding random data (called a "salt") to a password before hashing it, in order to make the resulting hash unique — even if two users have the same password.
+* It randomizes hashes to protect against rainbow table attacks and hash collision attacks.
+* Why is Salting necessary?
+   * When passwords are hashed without a salt:
+      * Two users with the same password would have the exact same hash.
+      * Hackers could use precomputed rainbow tables to instantly crack common passwords (like "123456").
+   * When salt is added to a password:
+      * Every password becomes unique before it's even hashed.
+      * Rainbow tables are completely useless because they'd have to precompute every possible salt-password combination, which is impossible at scale.
+* How Salting works (step by step):
+   * Generate a random salt (a string of random characters, typically 16 bytes or longer).
+   * Combine (concatenate) the salt with the password.
+   * Hash the combined string using a cryptographic hash function (like SHA-256, bcrypt, Argon2, etc.).
+   * Store both the salt and the resulting hash in the database.
+   * Important Notes:
+      * The salt must be stored because it’ll be needed later when verifying the password!
+      * The salt itself does NOT need to be secret — it’s fine if an attacker sees it. Its purpose is to make rainbow tables and mass cracking impractical.
+Managing Cookies and Sessions:
+* Cookies: 
+   * A cookie is a small piece of data that a server sends to a user's web browser, which the browser stores and sends back to the server with every future request to the same website.
+   * Small data stored on the client side
+   * Main purpose of Cookies:
+      * Remember users between visits (keep you logged in).
+      * Store small amounts of user information (like preferences, cart contents, language settings).
+      * Track user behavior (for analytics or targeted ads).
+   * Technical details about Cookies:
+      * Stored in the user's browser (Chrome, Safari, Firefox, etc.).
+      * Have properties like:
+         * name
+         * value
+         * expiration time (optional)
+         * domain (which site it belongs to)
+         * secure flag (only send over HTTPS)
+         * HttpOnly flag (not accessible by JavaScript, improves security)
+* Sessions:
+   * A session is a temporary storage of user information that lives on the server to track users while they interact with a website or app.
+   * User data stored on the server side
+   * Prevents users from having to continuously log in/re-authenticate (for a certain period of time) once they have already logged in once.
+   * Main purposes:
+      * Authenticate users (keep track of who is logged in).
+      * Store user-specific data during an ongoing interaction (shopping cart items, form progress).
+      * Manage temporary user state between HTTP requests (since HTTP is stateless by itself).
+   * Technical details about Sessions:
+      * A unique session ID is generated for each user.
+      * The server stores all session data (like username, privileges, etc.) attached to that ID.
+      * The session ID is usually sent and stored inside a cookie on the browser.
+      * On each request, the browser sends the session ID → server matches it → server loads the session data.
+* How Cookies and Sessions Work Together:
+   * User logs in.
+   * Server creates a session and stores user info on the server.
+   * Server sends back a cookie to the browser containing the session ID.
+   * Browser saves the cookie and sends it with every future request.
+   * Server reads the session ID from the cookie and retrieves the user's session data.
+* Passport module:
+   * Passport is a popular authentication middleware for Node.js that helps developers easily add login/authentication features (like email/password login, Google login, GitHub login, etc.) into their web applications.
+   * Essentially, it’s a plug-and-play authentication system for Node.js applications
+   * Main Features:
+      * Middleware → easily integrates into Express apps.
+      * Strategy-based → you can use different "strategies" depending on how the developer wants users to log in (local, OAuth, etc.).
+      * Lightweight → doesn’t manage sessions or user data itself — the developer decides how they want to store that (usually using sessions or JWTs).
+      * Flexible → works with usernames/passwords, OAuth providers (Google, Facebook, Twitter), OpenID, etc.
+   * Common Passport Strategies:
+      * passport-local → for email/password or username/password login.
+      * passport-google-oauth20 → for logging in with Google.
+      * passport-jwt → for token-based authentication using JSON Web Tokens.
+   * How Passport typically works:
+      * User submits a login form.
+      * Passport checks user credentials using a strategy.
+      * If successful, Passport authenticates the user and creates a session (or sends a token).
+      * User stays logged in until logout or session expiration.
+   * Passport itself is very minimal — the developer needs to configure it (define how to authenticate users, how to serialize/deserialize users).
+   * It’s the standard choice for adding authentication to Express apps.
+   * Think of Passport like a "universal connector" that hooks an application into many types of login systems easily.
+Environment Variables:
+* What are environment variables?
+   * Environment variables are key-value pairs stored outside an application’s code that define environment-specific settings. They allow developers to configure their app without hardcoding sensitive data like passwords, API keys, or database credentials directly into your code.
+   * Examples:
+      * Database username and password
+      * API keys
+      * Server port number
+      * Secret tokens for authentication
+   * Why use environmental variables?
+      * Security — keep sensitive data out of your codebase (especially out of GitHub).
+      * Flexibility — easily switch between environments (development, testing, production) without changing your source code.
+      * Scalability — better for large teams or deployments.
+* What is dotenv?
+   * a Node.js library that automatically loads environment variables from a file called .env into your Node.js application’s process.env object.
+* What is a .env file?
+   * a simple text file that contains environment variables written as key-value pairs, one per line.
+   * Important rules about .env files:
+      * No spaces around the = sign.
+      * Variable names are usually ALL_CAPS by convention.
+      * Strings don’t need quotes (but quotes are allowed if necessary).
+      * The .env file should never be committed to GitHub. Always add .env to your .gitignore file!
+OAuth:
+* OAuth (short for Open Authorization) is an authorization framework that allows a user to grant a third-party application limited access to their resources without sharing their password.
+* Example:
+   * When a user clicks "Sign in with Google" on a website — that’s OAuth; A user didn’t give the website their Gmail password — instead, Google gave them permission to access their account securely.
+* What problem does OAuth solve?
+   * Before OAuth, if an app needed access to another service (like your contacts or calendar), it would ask for a user’s password directly 😬 — very insecure.
+   * OAuth fixes this by:
+      * Keeping a user’s password private.
+      * Granting limited and controlled access (only to specific parts of a user’s data, like "read contacts" or "view profile").
+* How does OAuth work (basic flow)?
+   * User clicks “Login with [Service]” → App redirects the user to the service’s Authorization Server (i.e. Google, GitHub, etc.) → User logs in and grants permission (i.e. “Allow this app to view your email address”) → Authorization Server redirects user back to the app with a token → App uses this token to access the limited data from the service on behalf of the user
