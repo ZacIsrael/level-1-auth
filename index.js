@@ -84,12 +84,39 @@ app.get("/secrets", async (req, res) => {
   console.log("req.user", req.user);
   // check to see if a session exists
   if (req.isAuthenticated()) {
-    // if the user is authenticated (session is valid), render the secrets page/ejs file
-    res.render("secrets");
+    //TODO: Update this to pull in the user secret to render in secrets.ejs
+
+    console.log(
+      "typeof req.user.secret = ",
+      typeof req.user.secret,
+      "req.user.secret === null: ",
+      req.user.secret === null
+    );
+    // if the user's secret field is null, 
+    if (req.user.secret === null) {
+      // render the submit.ejs file so that the user will be prompted to submit a secret
+      res.render("submit");
+    } else {
+      // otherwise, render the secrets.ejs file (the user's secret will be displayed)
+
+      // if the user is authenticated (session is valid), render the secrets page/ejs file
+      res.render("secrets", {
+        secret: "",
+      });
+    }
   } else {
     // otherwise, redirect the user to the /login route so they can authenticate themselves
     res.redirect("/login");
   }
+});
+
+//TODO: Add a get route for the submit button
+//Think about how the logic should work with authentication.
+// triggered when the "submit" button is clicked
+app.get("/submit", async (req, res) => {
+  // adds a secret to the database
+  // find the user in the users table
+  // update its "secret" field with the input.
 });
 
 app.get("/login", (req, res) => {
