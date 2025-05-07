@@ -92,7 +92,7 @@ app.get("/secrets", async (req, res) => {
       "req.user.secret === null: ",
       req.user.secret === null
     );
-    // if the user's secret field is null, 
+    // if the user's secret field is null,
     if (req.user.secret === null) {
       // render the submit.ejs file so that the user will be prompted to submit a secret
       res.render("submit");
@@ -110,21 +110,95 @@ app.get("/secrets", async (req, res) => {
   }
 });
 
+// triggered when the "submit" button is clicked in the secrets.ejs file
+app.get("/submit", async (req, res) => {
+
+  // if the user clicks the "submit" button here, that means that they want 
+  // to update their secret so, render the submit.ejs file so they can do that.
+  res.render("submit");
+});
+
 //TODO: Add a get route for the submit button
 //Think about how the logic should work with authentication.
-// triggered when the "submit" button is clicked
+// triggered when the "submit" button is clicked on the submit.ejs file
 app.post("/submit", async (req, res) => {
   // adds a secret to the database
-  
-  console.log('\'/submit\' route: req.body = ', req.body, 'req.user = ', req.user);
-  // find the user in the users table
 
+  // always do a check
+  if (req.user === null) {
+    // Throw an error, we should never reach this point though because
+    // the app won't allow this route to be triggered unless a user has been authenticated
+    console.error(`Error (/submit): user has not been authenticated.`);
+    // redirect the end user to the login page
+    res.redirect("/login");
+  } else {
+    console.log(
+      "'/submit' route: req.body = ",
+      req.body,
+      "req.user = ",
+      req.user
+    );
+    // check to see if the user's input was passed in the body of the request
+    if (req.body.hasOwnProperty("secret")) {
+      let newSecret = req.body.secret;
+      // check to see if newSecret is an empty string
+      if (newSecret.trim().length === 0) {
+        // Redirect the user back to /secrets.
+        // In there, the submit.ejs file will be rendered again (because the user still does not have a secret)
+        // so that they can actaually add a secret this time around.
+        res.redirect("/secrets");
+      } else {
+        // find the user in the users table
+        let email = req.user.email;
+        // variable to store the result of the query
+        let result;
 
-  // update its "secret" field with the input.
+        try {
+          result = await db.query(
+            `SELECT * FROM ${usersTable} WHERE email = ($1)`,
+            [email]
+          );
+        } catch (err) {
+          console.error(`Error (/submit): `, err.stack);
+        }
 
-  // redirect the user to the secrets page (the secret will be updated with the input at this point)
-  res.redirect("/secrets");
-
+        if (result.rowCount < 1) {
+          // Error: no row in the users table with that email
+          console.error(
+            `Error (/submit): User with email ${email} does not exist. `,
+            err.stack
+          );
+          res.redirect("/login");
+        } else if (result.rowCount > 1) {
+          // Error: more than one row in the user table has that email
+          res
+            .sendStatus(409)
+            .json(`Error (/submit): ${email} belongs to more than one user.`);
+        } else {
+          // update its "secret" field with the input.
+          let userToUpdate = result.rows[0];
+          let queryResult;
+          try {
+            queryResult = await db.query(
+              `UPDATE ${usersTable} SET secret = ($1) WHERE email = ($2) RETURNING *`,
+              [newSecret, email]
+            );
+            // debugging (to ensure that the update was successful)
+            console.log("Updated row = ", queryResult.rows[0]);
+          } catch (err) {
+            console.error(
+              `Error (/submit) executing UPDATE query: `,
+              err.stack 
+            );
+          }
+          // render the user to the secrets
+          res.render("secrets", {
+            secret: queryResult.rows[0].secret,
+          });
+        }
+      }
+    }
+  }
 });
 
 app.get("/login", (req, res) => {
