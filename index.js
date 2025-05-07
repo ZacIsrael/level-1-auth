@@ -112,10 +112,16 @@ app.get("/secrets", async (req, res) => {
 
 // triggered when the "submit" button is clicked in the secrets.ejs file
 app.get("/submit", async (req, res) => {
+  // check to see if a user/session exists
+  if (req.isAuthenticated()) {
 
   // if the user clicks the "submit" button here, that means that they want 
   // to update their secret so, render the submit.ejs file so they can do that.
   res.render("submit");
+  } else {
+    // otherwise, redirect the user to the /login route so they can authenticate themselves
+    res.redirect("/login");
+  }
 });
 
 //TODO: Add a get route for the submit button
