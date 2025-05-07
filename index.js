@@ -113,7 +113,7 @@ app.get("/secrets", async (req, res) => {
 //TODO: Add a get route for the submit button
 //Think about how the logic should work with authentication.
 // triggered when the "submit" button is clicked
-app.get("/submit", async (req, res) => {
+app.post("/submit", async (req, res) => {
   // adds a secret to the database
   
   console.log('\'/submit\' route: req.body = ', req.body, 'req.user = ', req.user);
