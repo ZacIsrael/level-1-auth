@@ -101,7 +101,7 @@ app.get("/secrets", async (req, res) => {
 
       // if the user is authenticated (session is valid), render the secrets page/ejs file
       res.render("secrets", {
-        secret: "",
+        secret: req.user.secret,
       });
     }
   } else {
@@ -115,8 +115,16 @@ app.get("/secrets", async (req, res) => {
 // triggered when the "submit" button is clicked
 app.get("/submit", async (req, res) => {
   // adds a secret to the database
+  
+  console.log('\'/submit\' route: req.body = ', req.body, 'req.user = ', req.user);
   // find the user in the users table
+
+
   // update its "secret" field with the input.
+
+  // redirect the user to the secrets page (the secret will be updated with the input at this point)
+  res.redirect("/secrets");
+
 });
 
 app.get("/login", (req, res) => {
